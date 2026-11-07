@@ -1,0 +1,73 @@
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: planeta-backend
+
+  datasource:
+    # Direct PostgreSQL connection to Supabase or local postgres
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db.tsnolyvatlustxpqfrhg.supabase.co:5432/postgres?sslmode=require}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 30000
+      connection-timeout: 20000
+      max-lifetime: 1200000
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      # We do NOT let Hibernate modify tables; schema migrations live in supabase/migrations
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          lob:
+            non_contextual_creation: true
+
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 30MB
+
+# Supabase Auth and Storage Integration
+supabase:
+  url: ${VITE_SUPABASE_URL:https://tsnolyvatlustxpqfrhg.supabase.co}
+  jwt:
+    # Secret key from Supabase Dashboard -> Project Settings -> API -> JWT Secret
+    secret: ${SUPABASE_JWT_SECRET:super-secret-jwt-token-with-at-least-32-characters}
+  storage:
+    bucket: sponsor-files
+    service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+
+# CORS settings for frontend connection
+cors:
+  allowed-origins:
+    - "http://localhost:5173"
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+    - "https://*.lovable.app"
+    - "https://*.lovableproject.com"
+
+# Swagger UI / OpenAPI documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
+# Management & Health endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info

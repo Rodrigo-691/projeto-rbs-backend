@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  backend-java:
+    build: .
+    container_name: planeta-backend-java
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db.tsnolyvatlustxpqfrhg.supabase.co:5432/postgres?sslmode=require
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=${SUPABASE_DB_PASSWORD:-}
+      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET:-}
+      - VITE_SUPABASE_URL=https://tsnolyvatlustxpqfrhg.supabase.co
+    restart: unless-stopped
