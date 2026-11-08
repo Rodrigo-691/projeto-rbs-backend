@@ -19,7 +19,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.InputStream;
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -176,6 +178,24 @@ public class SponsorService {
             int successCount = 0;
             int errorCount = 0;
 
+            // Busca patrocinadores cadastrados no banco para verificação de duplicidade
+            List<Sponsor> existingDbSponsors = sponsorRepository.findAll();
+            Map<String, Sponsor> existingByCnpj = new HashMap<>();
+            Map<String, Sponsor> existingByName = new HashMap<>();
+            for (Sponsor s : existingDbSponsors) {
+                if (s.getCnpj() != null && !s.getCnpj().isBlank()) {
+                    String d = extractDigits(s.getCnpj());
+                    if (d.length() >= 8) existingByCnpj.put(d, s);
+                }
+                if (s.getName() != null && !s.getName().isBlank()) {
+                    existingByName.put(normalizeText(s.getName()), s);
+                }
+            }
+
+            // Mapas para verificação de duplicidade na própria planilha
+            Map<String, Integer> seenSheetCnpjs = new HashMap<>();
+            Map<String, Integer> seenSheetNames = new HashMap<>();
+
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) continue;
@@ -225,6 +245,61 @@ public class SponsorService {
                     continue;
                 }
 
+                String cleanCnpjDigits = extractDigits(cnpj);
+                String cleanNameNorm = normalizeText(nome);
+
+                // 1. Checagem contra o banco de dados (já cadastrado na plataforma)
+                if (cleanCnpjDigits.length() >= 8 && existingByCnpj.containsKey(cleanCnpjDigits)) {
+                    Sponsor existing = existingByCnpj.get(cleanCnpjDigits);
+                    errorCount++;
+                    result.getErrors().add(SponsorRowErrorDto.builder()
+                            .rowNumber(r + 1)
+                            .sponsorName(nome.trim())
+                            .cnpj(cnpj.trim())
+                            .errorMessage("Patrocinador já cadastrado na plataforma (CNPJ coincide com '" + existing.getName() + "').")
+                            .build());
+                    continue;
+                }
+                if (!cleanNameNorm.isBlank() && existingByName.containsKey(cleanNameNorm)) {
+                    Sponsor existing = existingByName.get(cleanNameNorm);
+                    errorCount++;
+                    result.getErrors().add(SponsorRowErrorDto.builder()
+                            .rowNumber(r + 1)
+                            .sponsorName(nome.trim())
+                            .cnpj(cnpj.trim())
+                            .errorMessage("Patrocinador já cadastrado na plataforma (marca com nome '" + existing.getName() + "' já existe).")
+                            .build());
+                    continue;
+                }
+
+                // 2. Checagem contra a própria planilha (duplicidade interna)
+                if (cleanCnpjDigits.length() >= 8 && seenSheetCnpjs.containsKey(cleanCnpjDigits)) {
+                    int prevLine = seenSheetCnpjs.get(cleanCnpjDigits);
+                    errorCount++;
+                    result.getErrors().add(SponsorRowErrorDto.builder()
+                            .rowNumber(r + 1)
+                            .sponsorName(nome.trim())
+                            .cnpj(cnpj.trim())
+                            .errorMessage("Patrocinador duplicado na própria planilha (mesmo CNPJ da linha #" + prevLine + ").")
+                            .build());
+                    continue;
+                }
+                if (!cleanNameNorm.isBlank() && seenSheetNames.containsKey(cleanNameNorm)) {
+                    int prevLine = seenSheetNames.get(cleanNameNorm);
+                    errorCount++;
+                    result.getErrors().add(SponsorRowErrorDto.builder()
+                            .rowNumber(r + 1)
+                            .sponsorName(nome.trim())
+                            .cnpj(cnpj.trim())
+                            .errorMessage("Patrocinador duplicado na própria planilha (mesmo Nome da linha #" + prevLine + ").")
+                            .build());
+                    continue;
+                }
+
+                // Registra nos mapas de controle
+                if (cleanCnpjDigits.length() >= 8) seenSheetCnpjs.put(cleanCnpjDigits, r + 1);
+                if (!cleanNameNorm.isBlank()) seenSheetNames.put(cleanNameNorm, r + 1);
+
                 Sponsor sponsor = Sponsor.builder()
                         .name(nome.trim())
                         .cnpj(cnpj.trim())
@@ -236,6 +311,9 @@ public class SponsorService {
                         .build();
 
                 Sponsor saved = sponsorRepository.save(sponsor);
+                if (cleanCnpjDigits.length() >= 8) existingByCnpj.put(cleanCnpjDigits, saved);
+                if (!cleanNameNorm.isBlank()) existingByName.put(cleanNameNorm, saved);
+
                 auditService.log(saved.getId(), actorEmail, "INSERT", "sponsors", "Cadastrou patrocinador em lote: " + saved.getName() + " (" + saved.getQuota().getLabel() + ")");
                 result.getCreatedSponsors().add(toDto(saved));
                 successCount++;
@@ -291,6 +369,11 @@ public class SponsorService {
         if (input == null) return "";
         String normalized = Normalizer.normalize(input, Normalizer.Form.NFD);
         return normalized.replaceAll("[\\p{InCombiningDiacriticalMarks}]", "").toLowerCase().trim();
+    }
+
+    private String extractDigits(String input) {
+        if (input == null) return "";
+        return input.replaceAll("\\D", "");
     }
 
     private QuotaLevel parseQuotaLevel(String raw) {
