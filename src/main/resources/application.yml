@@ -11,7 +11,7 @@ spring:
     # Direct PostgreSQL connection to Supabase or local postgres
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db.tsnolyvatlustxpqfrhg.supabase.co:5432/postgres?sslmode=require}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:}
+    password: ${SPRING_DATASOURCE_PASSWORD:Rodrigo691Ferraz}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -43,7 +43,7 @@ supabase:
   url: ${VITE_SUPABASE_URL:https://tsnolyvatlustxpqfrhg.supabase.co}
   jwt:
     # Secret key from Supabase Dashboard -> Project Settings -> API -> JWT Secret
-    secret: ${SUPABASE_JWT_SECRET:super-secret-jwt-token-with-at-least-32-characters}
+    secret: ${SUPABASE_JWT_SECRET:RIssUJdt3cBFD2aCSkJdnkPIjUyvPuehuo+PzYlgPFyip5XGcsAbUMTw6QpWDMVDCZXVWq2mmlJpbh+c3NHkAQ==}
   storage:
     bucket: sponsor-files
     service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}

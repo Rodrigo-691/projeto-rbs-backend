@@ -1,5 +1,6 @@
 package com.rbs.planeta.controller;
 
+import com.rbs.planeta.dto.SponsorBatchImportResultDto;
 import com.rbs.planeta.dto.SponsorDto;
 import com.rbs.planeta.model.QuotaLevel;
 import com.rbs.planeta.security.UserPrincipal;
@@ -9,10 +10,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -65,5 +68,16 @@ public class SponsorController {
     ) {
         SponsorDto updated = sponsorService.update(id, dto, user.getEmail());
         return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping(value = "/import-excel", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN_RBS')")
+    @Operation(summary = "Importar planilha com vários patrocinadores em lote com Apache POI")
+    public ResponseEntity<SponsorBatchImportResultDto> importExcel(
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal UserPrincipal user
+    ) {
+        SponsorBatchImportResultDto result = sponsorService.importSpreadsheet(file, user.getEmail());
+        return ResponseEntity.ok(result);
     }
 }
